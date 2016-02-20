@@ -1,7 +1,10 @@
 # replikativ-cljs-demo
 
 This is a small demo project of how to use
-[replikativ](https://github.com/replikativ/replikativ) in the Browser. See [replikativ-cljs-demo](https://github.com/replikativ/replikativ-demo) for the corresponding Clojure project.
+[replikativ](https://github.com/replikativ/replikativ) in the Browser. See [replikativ-demo](https://github.com/replikativ/replikativ-demo) for the corresponding Clojure project.
+
+Have a look at the `core.cljs` namespace of how to change and track
+the state of a `CDVCS` repository.
 
 ## Setup
 
@@ -23,8 +26,8 @@ Optionally (e.g. in Emacs with CIDER):
 Connect to nREPL on port 7888 and
 Paste the following into the REPL to hook into the figwheel cljs REPL,
 ```clojure
-      (require 'figwheel-sidecar.repl-api)
-      (figwheel-sidecar.repl-api/cljs-repl)
+(require 'figwheel-sidecar.repl-api)
+(figwheel-sidecar.repl-api/cljs-repl)
 ```
 
 
