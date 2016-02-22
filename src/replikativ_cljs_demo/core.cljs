@@ -38,24 +38,28 @@
 (defn init []
   (go-try
    (def client-state (<? (start-local)))
-   (add-watch (:stage client-state)
-              :print-counter
-              (fn [_ _ _ {{{cdvcs :state} cdvcs-id} "eve@replikativ.io"}]
-                (go-try
-                 (set! (.-innerHTML (.getElementById js/document "counter"))
-                       (<? (head-value (:store client-state)
-                                       eval-fns
-                                       ;; manually verify metadata presence
-                                       cdvcs))))))
 
    (try
      (<? (connect! (:stage client-state) uri))
      ;; this waits until the remote CDVCS is available
      (<? (subscribe-crdts! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))
-     ;; alternatively create a local copy, but then you can commit
-     ;; against an outdated (unsynchronized) version
+     ;; alternatively create a local copy with the same initialization
+     ;; as the server, but then you can commit against an outdated
+     ;; (unsynchronized) version, inducing conflicts
      (catch js/Error e
-       (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))))))
+       (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
+       (<? (s/transact (:stage client-state)
+                       ["eve@replikativ.io" cdvcs-id]
+                       '(fn [_ new] new)
+                       0))
+       (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))))
+
+   (add-watch (:stage client-state)
+              :print-counter
+              (fn [_ _ _ {{{cdvcs :state} cdvcs-id} "eve@replikativ.io"}]
+                (go-try
+                 (set! (.-innerHTML (.getElementById js/document "counter"))
+                       (<? (head-value (:store client-state) eval-fns cdvcs))))))))
 
 
 (defn add! [_]
@@ -66,8 +70,6 @@
                      '+
                      n)))
    (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))))
-
-
 
 
 (defn main [& args]
