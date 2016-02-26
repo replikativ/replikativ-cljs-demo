@@ -23,7 +23,7 @@
   (go-try
    (let [local-store (<? (new-mem-store))
          err-ch (chan)
-         local-peer (client-peer "CLJS CLIENT" local-store err-ch)
+         local-peer (<? (client-peer local-store err-ch))
          stage (<? (create-stage! "eve@replikativ.io" local-peer err-ch))
          _ (go-loop [e (<? err-ch)]
              (when e
@@ -39,6 +39,13 @@
   (go-try
    (def client-state (<? (start-local)))
 
+   (add-watch (:stage client-state)
+              :print-counter
+              (fn [_ _ _ {{{cdvcs :state} cdvcs-id} "eve@replikativ.io"}]
+                (go-try
+                 (set! (.-innerHTML (.getElementById js/document "counter"))
+                       (<? (head-value (:store client-state) eval-fns cdvcs))))))
+
    (try
      (<? (connect! (:stage client-state) uri))
      ;; this waits until the remote CDVCS is available
@@ -52,14 +59,7 @@
                        ["eve@replikativ.io" cdvcs-id]
                        '(fn [_ new] new)
                        0))
-       (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))))
-
-   (add-watch (:stage client-state)
-              :print-counter
-              (fn [_ _ _ {{{cdvcs :state} cdvcs-id} "eve@replikativ.io"}]
-                (go-try
-                 (set! (.-innerHTML (.getElementById js/document "counter"))
-                       (<? (head-value (:store client-state) eval-fns cdvcs))))))))
+       (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))))))
 
 
 (defn add! [_]
