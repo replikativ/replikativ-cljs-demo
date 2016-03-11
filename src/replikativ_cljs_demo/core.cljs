@@ -2,7 +2,7 @@
 	(:require [konserve.memory :refer [new-mem-store]]
             [replikativ.peer :refer [client-peer]]
             [replikativ.stage :refer [create-stage! connect! subscribe-crdts!]]
-            [replikativ.crdt.cdvcs.realize :refer [head-value]]
+            [replikativ.crdt.cdvcs.realize :refer [stream-into-atom!]]
             [replikativ.crdt.cdvcs.stage :as s]
             [cljs.core.async :refer [>! chan timeout]]
             [full.cljs.async :refer [throw-if-throwable]])
@@ -24,7 +24,7 @@
    (let [local-store (<? (new-mem-store))
          err-ch (chan)
          local-peer (<? (client-peer local-store err-ch))
-         stage (<? (create-stage! "eve@replikativ.io" local-peer err-ch))
+         stage (<? (create-stage! "mail:eve@replikativ.io" local-peer err-ch))
          _ (go-loop [e (<? err-ch)]
              (when e
                (.log js/console "ERROR:" e)
@@ -39,37 +39,39 @@
   (go-try
    (def client-state (<? (start-local)))
 
-   (add-watch (:stage client-state)
-              :print-counter
-              (fn [_ _ _ {{{cdvcs :state} cdvcs-id} "eve@replikativ.io"}]
-                (go-try
-                 (set! (.-innerHTML (.getElementById js/document "counter"))
-                       (<? (head-value (:store client-state) eval-fns cdvcs))))))
+   (def val-atom (atom -1))
+   (stream-into-atom! (:stage client-state)
+                      ["mail:eve@replikativ.io" cdvcs-id]
+                      eval-fns
+                      val-atom)
+   (add-watch val-atom :print-counter
+              (fn [_ _ _ val]
+                (set! (.-innerHTML (.getElementById js/document "counter")) val)))
 
    (try
      (<? (connect! (:stage client-state) uri))
      ;; this waits until the remote CDVCS is available
-     (<? (subscribe-crdts! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))
+     (<? (subscribe-crdts! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}}))
      ;; alternatively create a local copy with the same initialization
      ;; as the server, but then you can commit against an outdated
      ;; (unsynchronized) version, inducing conflicts
      (catch js/Error e
        (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
        (<? (s/transact (:stage client-state)
-                       ["eve@replikativ.io" cdvcs-id]
+                       ["mail:eve@replikativ.io" cdvcs-id]
                        '(fn [_ new] new)
                        0))
-       (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))))))
+       (<? (s/commit! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}}))))))
 
 
 (defn add! [_]
   (go-try
    (let [n (js/parseInt (.-value (.getElementById js/document "to_add")))]
      (<? (s/transact (:stage client-state)
-                     ["eve@replikativ.io" cdvcs-id]
+                     ["mail:eve@replikativ.io" cdvcs-id]
                      '+
                      n)))
-   (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}}))))
+   (<? (s/commit! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}}))))
 
 
 (defn main [& args]
@@ -91,32 +93,32 @@
 
   (go-try (<? (connect! (:stage client-state) uri)))
 
-  (go-try (<? (subscribe-crdts! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}})))
+  (go-try (<? (subscribe-crdts! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}})))
 
-  (keys (get @(:stage client-state) "eve@replikativ.io"))
+  (keys (get @(:stage client-state) "mail:eve@replikativ.io"))
 
   (println (-> client-state :stage deref :config))
 
   (println (-> client-state :log deref))
 
-  (-> client-state :store :state deref (get ["eve@replikativ.io" cdvcs-id]) :state :commit-graph)
+  (-> client-state :store :state deref (get ["mail:eve@replikativ.io" cdvcs-id]) :state :commit-graph)
 
 
   (->> client-state :store :state deref keys (filter vector?))
 
-  (-> client-state :store :state deref (get ["eve@replikativ.io" cdvcs-id]) :state :commit-graph count)
+  (-> client-state :store :state deref (get ["mail:eve@replikativ.io" cdvcs-id]) :state :commit-graph count)
 
   (go-try
    (<? (s/transact (:stage client-state)
-                   ["eve@replikativ.io" cdvcs-id]
+                   ["mail:eve@replikativ.io" cdvcs-id]
                    '(fn [old params] params)
                    999)))
 
 
-  (-> client-state :stage deref (get-in ["eve@replikativ.io" cdvcs-id :prepared]) println)
+  (-> client-state :stage deref (get-in ["mail:eve@replikativ.io" cdvcs-id :prepared]) println)
 
   (println (:stage client-state))
 
   (go-try
-   (<? (s/commit! (:stage client-state) {"eve@replikativ.io" #{cdvcs-id}})))
+   (<? (s/commit! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}})))
   )
