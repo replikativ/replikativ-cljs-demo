@@ -5,8 +5,8 @@
             [replikativ.crdt.cdvcs.realize :refer [stream-into-atom!]]
             [replikativ.crdt.cdvcs.stage :as s]
             [cljs.core.async :refer [>! chan timeout]]
-            [full.cljs.async :refer [throw-if-throwable]])
-  (:require-macros [full.cljs.async :refer [go-try <? go-loop-try]]
+            [full.async :refer [throw-if-exception]])
+  (:require-macros [full.async :refer [go-try <? go-loop-try]]
                    [cljs.core.async.macros :refer [go-loop]]))
 
 (enable-console-print!)
@@ -22,16 +22,10 @@
 (defn start-local []
   (go-try
    (let [local-store (<? (new-mem-store))
-         err-ch (chan)
-         local-peer (<? (client-peer local-store err-ch))
-         stage (<? (create-stage! "mail:eve@replikativ.io" local-peer err-ch))
-         _ (go-loop [e (<? err-ch)]
-             (when e
-               (.log js/console "ERROR:" e)
-               (recur (<? err-ch))))]
+         local-peer (<? (client-peer local-store))
+         stage (<? (create-stage! "mail:eve@replikativ.io" local-peer))]
      {:store local-store
       :stage stage
-      :error-chan err-ch
       :peer local-peer})))
 
 
@@ -57,21 +51,17 @@
      ;; (unsynchronized) version, inducing conflicts
      (catch js/Error e
        (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
-       (<? (s/transact (:stage client-state)
-                       ["mail:eve@replikativ.io" cdvcs-id]
-                       '(fn [_ new] new)
-                       0))
-       (<? (s/commit! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}}))))))
+       (<? (s/transact! (:stage client-state)
+                        ["mail:eve@replikativ.io" cdvcs-id]
+                        [['(fn [_ new] new) 0]]))))))
 
 
 (defn add! [_]
   (go-try
    (let [n (js/parseInt (.-value (.getElementById js/document "to_add")))]
-     (<? (s/transact (:stage client-state)
-                     ["mail:eve@replikativ.io" cdvcs-id]
-                     '+
-                     n)))
-   (<? (s/commit! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}}))))
+     (<? (s/transact! (:stage client-state)
+                      ["mail:eve@replikativ.io" cdvcs-id]
+                      [['+ n]])))))
 
 
 (defn main [& args]
