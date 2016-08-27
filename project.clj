@@ -12,11 +12,9 @@
 
   :source-paths ["src"]
 
-  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]]
-                   :figwheel {:nrepl-port 7888
-                              :nrepl-middleware ["cider.nrepl/cider-middleware"
-                                                 "cemerick.piggieback/wrap-cljs-repl"]}
-                   :plugins [[lein-figwheel "0.5.0-2"]]}}
+  :profiles {:dev {:dependencies [[com.cemerick/piggieback "0.2.1"]
+                                  [figwheel-sidecar "0.5.2"]]
+                   :plugins [[lein-figwheel "0.5.6"]]}}
 
 
 

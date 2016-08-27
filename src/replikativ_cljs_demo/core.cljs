@@ -38,25 +38,17 @@
                       ["mail:eve@replikativ.io" cdvcs-id]
                       eval-fns
                       val-atom)
+
+   (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
    (add-watch val-atom :print-counter
               (fn [_ _ _ val]
                 (set! (.-innerHTML (.getElementById js/document "counter")) val)))
 
-   (try
-     (<? (connect! (:stage client-state) uri))
-     ;; this waits until the remote CDVCS is available
-     (<? (subscribe-crdts! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}}))
-     ;; alternatively create a local copy with the same initialization
-     ;; as the server, but then you can commit against an outdated
-     ;; (unsynchronized) version, inducing conflicts
-     (catch js/Error e
-       (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
-       (<? (s/transact! (:stage client-state)
-                        ["mail:eve@replikativ.io" cdvcs-id]
-                        [['(fn [_ new] new) 0]]))))))
+   (<? (connect! (:stage client-state) uri))))
 
 
 (defn add! [_]
+  (.log js/console (pr-str (:stage client-state)))
   (go-try
    (let [n (js/parseInt (.-value (.getElementById js/document "to_add")))]
      (<? (s/transact! (:stage client-state)
@@ -67,6 +59,8 @@
 (defn main [& args]
   (init)
   (set! (.-onclick (.getElementById js/document "add")) add!))
+
+
 
 (comment
   ;; start REPL with
