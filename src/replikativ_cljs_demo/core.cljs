@@ -4,6 +4,7 @@
             [replikativ.stage :refer [create-stage! connect! subscribe-crdts!]]
             [replikativ.crdt.cdvcs.realize :refer [stream-into-atom!]]
             [replikativ.crdt.cdvcs.stage :as s]
+            [replikativ.crdt.cdvcs.realize :refer [head-value]]
             [cljs.core.async :refer [>! chan timeout]]
             [full.async :refer [throw-if-exception]])
   (:require-macros [full.async :refer [go-try <? go-loop-try]]
@@ -53,7 +54,13 @@
    (let [n (js/parseInt (.-value (.getElementById js/document "to_add")))]
      (<? (s/transact! (:stage client-state)
                       ["mail:eve@replikativ.io" cdvcs-id]
-                      [['+ n]])))))
+                      [['+ n]]))
+     (.info js/console "Current value from store (to check against streaming):"
+            (<? (head-value (:store client-state)
+                            eval-fns
+                            ;; manually verify metadata presence
+                            (get-in @(:stage client-state)
+                                    ["mail:eve@replikativ.io" cdvcs-id :state])))))))
 
 
 (defn main [& args]
