@@ -6,7 +6,7 @@
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.8.34"]
-                 [io.replikativ/replikativ "0.2.0-SNAPSHOT"]]
+                 [io.replikativ/replikativ "0.2.0-beta2"]]
 
   :plugins [[lein-cljsbuild "1.1.2" :exclusions [[org.clojure/clojure]]]]
 

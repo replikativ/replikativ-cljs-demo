@@ -20,6 +20,10 @@
   {'(fn [_ new] new) (fn [_ new] new)
    '+ +})
 
+(def stream-eval-fns
+  {'(fn [_ new] new) (fn [a new] (reset! a new) a)
+   '+ (fn [a new] (swap! a + new) a)})
+
 (defn start-local []
   (go-try
    (let [local-store (<? (new-mem-store))
@@ -37,7 +41,7 @@
    (def val-atom (atom -1))
    (stream-into-atom! (:stage client-state)
                       ["mail:eve@replikativ.io" cdvcs-id]
-                      eval-fns
+                      stream-eval-fns
                       val-atom)
 
    (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
@@ -49,7 +53,6 @@
 
 
 (defn add! [_]
-  (.log js/console (pr-str (:stage client-state)))
   (go-try
    (let [n (js/parseInt (.-value (.getElementById js/document "to_add")))]
      (<? (s/transact! (:stage client-state)
