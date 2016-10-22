@@ -2,12 +2,12 @@
 	(:require [konserve.memory :refer [new-mem-store]]
             [replikativ.peer :refer [client-peer]]
             [replikativ.stage :refer [create-stage! connect! subscribe-crdts!]]
-            [replikativ.crdt.cdvcs.realize :refer [stream-into-atom!]]
+            [replikativ.crdt.cdvcs.realize :refer [stream-into-identity!]]
             [replikativ.crdt.cdvcs.stage :as s]
             [replikativ.crdt.cdvcs.realize :refer [head-value]]
             [cljs.core.async :refer [>! chan timeout]]
-            [full.async :refer [throw-if-exception]])
-  (:require-macros [full.async :refer [go-try <? go-loop-try]]
+            [superv.async :refer [throw-if-exception S]])
+  (:require-macros [superv.async :refer [go-try <? go-loop-try]]
                    [cljs.core.async.macros :refer [go-loop]]))
 
 (enable-console-print!)
@@ -25,45 +25,46 @@
    '+ (fn [a new] (swap! a + new) a)})
 
 (defn start-local []
-  (go-try
-   (let [local-store (<? (new-mem-store))
-         local-peer (<? (client-peer local-store))
-         stage (<? (create-stage! "mail:eve@replikativ.io" local-peer))]
+  (go-try S
+   (let [local-store (<? S (new-mem-store))
+         local-peer (<? S (client-peer S local-store))
+         stage (<? S (create-stage! "mail:eve@replikativ.io" local-peer))]
      {:store local-store
       :stage stage
       :peer local-peer})))
 
 
 (defn init []
-  (go-try
-   (def client-state (<? (start-local)))
+  (go-try S
+   (def client-state (<? S (start-local)))
 
    (def val-atom (atom -1))
-   (stream-into-atom! (:stage client-state)
-                      ["mail:eve@replikativ.io" cdvcs-id]
-                      stream-eval-fns
-                      val-atom)
+   (stream-into-identity! (:stage client-state)
+                          ["mail:eve@replikativ.io" cdvcs-id]
+                          stream-eval-fns
+                          val-atom)
 
-   (<? (s/create-cdvcs! (:stage client-state) :description "testing" :id cdvcs-id))
+   (<? S (s/create-cdvcs! (:stage client-state)
+                          :description "testing" :id cdvcs-id))
    (add-watch val-atom :print-counter
               (fn [_ _ _ val]
                 (set! (.-innerHTML (.getElementById js/document "counter")) val)))
 
-   (<? (connect! (:stage client-state) uri))))
+   (<? S (connect! (:stage client-state) uri))))
 
 
 (defn add! [_]
-  (go-try
+  (go-try S
    (let [n (js/parseInt (.-value (.getElementById js/document "to_add")))]
-     (<? (s/transact! (:stage client-state)
+     (<? S (s/transact! (:stage client-state)
                       ["mail:eve@replikativ.io" cdvcs-id]
                       [['+ n]]))
      (.info js/console "Current value from store (to check against streaming):"
-            (<? (head-value (:store client-state)
-                            eval-fns
-                            ;; manually verify metadata presence
-                            (get-in @(:stage client-state)
-                                    ["mail:eve@replikativ.io" cdvcs-id :state])))))))
+            (<? S (head-value S (:store client-state)
+                              eval-fns
+                              ;; manually verify metadata presence
+                              (get-in @(:stage client-state)
+                                      ["mail:eve@replikativ.io" cdvcs-id :state])))))))
 
 
 (defn main [& args]
@@ -83,11 +84,11 @@
   (figwheel-sidecar.repl-api/cljs-repl)
 
 
-  (go-try (def client-state (<? (start-local))))
+  (go-try S (def client-state (<? S (start-local))))
 
-  (go-try (<? (connect! (:stage client-state) uri)))
+  (go-try S (<? S (connect! (:stage client-state) uri)))
 
-  (go-try (<? (subscribe-crdts! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}})))
+  (go-try S (<? S (subscribe-crdts! (:stage client-state) {"mail:eve@replikativ.io" #{cdvcs-id}})))
 
   (keys (get @(:stage client-state) "mail:eve@replikativ.io"))
 
