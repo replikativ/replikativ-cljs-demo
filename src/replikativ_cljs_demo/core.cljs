@@ -4,11 +4,9 @@
             [replikativ.stage :refer [create-stage! connect! subscribe-crdts!]]
             [replikativ.crdt.cdvcs.realize :refer [stream-into-identity!]]
             [replikativ.crdt.cdvcs.stage :as s]
-            [replikativ.crdt.cdvcs.realize :refer [head-value]]
             [cljs.core.async :refer [>! chan timeout]]
-            [superv.async :refer [throw-if-exception S]])
-  (:require-macros [superv.async :refer [go-try <? go-loop-try]]
-                   [cljs.core.async.macros :refer [go-loop]]))
+            [superv.async :refer [throw-if-exception S superv-init]])
+  (:require-macros [superv.async :refer [go-try <?]]))
 
 (enable-console-print!)
 
@@ -60,7 +58,7 @@
                       ["mail:eve@replikativ.io" cdvcs-id]
                       [['+ n]]))
      (.info js/console "Current value from store (to check against streaming):"
-            (<? S (head-value S (:store client-state)
+            #_(<? S (head-value S (:store client-state)
                               eval-fns
                               ;; manually verify metadata presence
                               (get-in @(:stage client-state)
